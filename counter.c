@@ -1,4 +1,6 @@
 #include <sys/types.h>
+#include <sys/mman.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,13 +14,39 @@
 
 // Global varialble to indicate that parent has recieved the signal
 bool parentRecieved = false;
+long counter;
 
 // USR1 signal handler.
 // Signal handler that sets parentRecieved to true after recieving signal from
 // parnet
 void USR1_signal_handler(int signum, siginfo_t *info, void *ptr) {
   PRINT_D(D_SIGNAL_RECIEVE, (unsigned long)info->si_pid);
+  char pipepath[MAX_STRING];
+  char buffer[MAX_STRING];
+  int pd;
+  int pid = getpid();
+
   parentRecieved = true;
+  
+  // Create pipename
+  sprintf(pipepath, PIPENAME_FORMAT, pid);
+
+  // Create a string for the number
+  sprintf(buffer, "%ld", counter);
+
+  pd = open(pipepath, O_WRONLY);
+  if (pd < 0) {
+    PRINT_D(OPEN_PIPE_FAIL, pipepath, strerror(errno));
+  }
+
+  // Write to the pipe
+  PRINT_D("%d: " D_WRITING_PIPE, pid, buffer, pipepath);
+  if (write(pd, buffer, strlen(buffer)) < 0) {
+    PRINT_I(WRITE_PIPE_FAIL, pipepath, strerror(errno));
+  }
+
+  // Close pipe
+  close(pd);
 }
 
 // Main entry point for the counter
@@ -37,6 +65,10 @@ void USR1_signal_handler(int signum, siginfo_t *info, void *ptr) {
 int main(int argc, char *argv[]) {
   // Define variables
   struct sigaction USR1Action;
+  int fd;
+  int pd;
+  char *map;
+  char pipepath[MAX_STRING];
   long offset;
   long size;
 
@@ -45,6 +77,8 @@ int main(int argc, char *argv[]) {
   int i;
 
   int pid = getpid();
+
+  counter = 0;
 
   // Validate arguments
   if (argc != 5 || strlen(argv[1]) != 1) {
@@ -78,9 +112,43 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
+//  // Open the file
+//  fd = open(argv[2], O_RDONLY);
+//  if (fd < 0) {
+//    PRINT_I(OPEN_FILE_FAIL, strerror(errno));
+//    exit(1);
+//  }
+
+//  // Map the file into memory
+//  map = (char*)mmap(NULL, size, PROT_READ, MAP_SHARED, fd, offset);
+//  if (map == MAP_FAILED) {
+//    PRINT_I(CREATE_MAP_FAIL, strerror(errno));
+//    exit(1);
+//  }
+
+//  // Count the num of appearences of the character in the file
+//  for (int i = 0; i < size; i++) {
+//    if (map[i] == argv[1][0]) {
+//      counter += 1;
+//    }
+//  }
+  counter = offset;
+
+//  close(fd);
+//  munmap(map, size);
+
+  // Create pipename
+  sprintf(pipepath, PIPENAME_FORMAT, pid);
+
+  // Create the pipe
+  pd = mkfifo(pipepath, PIPE_MODE);
+  if (pd < 0) {
+    PRINT_I(CREATE_PIPE_FAIL, pipepath, strerror(errno));
+    exit(1);
+  }
 
   // Send SIGUSR1 to parent until an answer is returned or twice the maximum
-  // number of counters
+  // number of counters tries were tried
   int parent_pid = getppid();
   if (parent_pid > 1) {
     for (i = 0; i < 2*MAX_COUNTERS && !parentRecieved; i++) {
@@ -93,6 +161,6 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  // Close and delete the pipe
-  // ------------------------
+  // Delete the pipe
+  unlink(pipepath);
 }

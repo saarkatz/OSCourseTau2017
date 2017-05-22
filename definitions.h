@@ -6,11 +6,18 @@
 #define MIN_COUNTARE_SIZE 4096
 #define MAX_STRING 1024
 #define MAX_ARG_LENGTH 256
+#define PIPE_MODE 0666
 
 // String constants
 #define PIPENAME_FORMAT "/tmp/counter_%d"
 
 #define SIGACTION_FAIL "Failed to register signal handler: %s\n"
+#define CREATE_PIPE_FAIL "Failed to create pipe \"%s\": %s\n"
+#define OPEN_PIPE_FAIL "Failed to open pipe \"%s\": %s\n"
+#define READ_PIPE_FAIL "Failed to read from pipe \"%s\": %s\n"
+#define WRITE_PIPE_FAIL "Failed to write to pipe \"%s\": %s\n"
+#define OPEN_FILE_FAIL "Failed to open file \"%s\": %s\n"
+#define CREATE_MAP_FAIL "Failed to map file to memory: %s\n"
 
 #define D_SIGNAL_RECIEVE "Signal recieved from process %lu\n"
 

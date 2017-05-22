@@ -1,6 +1,6 @@
-#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
@@ -12,7 +12,7 @@
 #include "definitions.h"
 
 // Global counter
-unsigned long count;
+unsigned long count = 0;
 
 // USR1 signal handler.
 // This signal sould be sent by a counter process to notifie the dispacher that
@@ -23,6 +23,13 @@ void USR1_signal_handler(int signum, siginfo_t *info, void *ptr) {
   char buffer[MAX_STRING];
   int pd;
 
+  long amount;
+  char *str_end;
+
+  // Send signal back to child to notify it that signal was recieved
+  kill(info->si_pid, SIGUSR1);
+
+  // Create pipename
   sprintf(pipename, PIPENAME_FORMAT, info->si_pid);
 
   // Open pipe
@@ -32,16 +39,27 @@ void USR1_signal_handler(int signum, siginfo_t *info, void *ptr) {
     return;
   }
 
+  // Read from pipe
   if (read(pd, buffer, MAX_STRING) < 0) {
     PRINT_I(READ_PIPE_FAIL, pipename, strerror(errno));
     close(pd);
     return;
   }
 
-  close(pd);
+  // Get the number from the buffer
+  PRINT_D(D_READ_PIPE, buffer, pipename);
+  amount = strtol(buffer, &str_end, 0);
+  if (str_end == buffer) {
+    PRINT_I(READ_PIPE_FAIL, pipename, strerror(errno));
+    close(pd);
+    return;
+  }
 
-  // Send signal back to child to notify it that signal was recieved
-  kill(info->si_pid, SIGUSR1);
+  // Add the number to the counter
+  count += amount;
+
+  // Close the pipe
+  close(pd);
 }
 
 // Main entry point for the dispatcher
@@ -58,11 +76,9 @@ int main(int argc, char *argv[]) {
   long fileSize;
   int numCounters;
 
-  char arg1[MAX_ARG_LENGTH];
-  char arg2[MAX_ARG_LENGTH];
   char arg3[MAX_ARG_LENGTH];
   char arg4[MAX_ARG_LENGTH];
-  char *in_args[] = { COUNTER_FILENAME, arg1, arg2, arg3, arg4, NULL };
+  char *in_args[] = { COUNTER_FILENAME, argv[1], argv[2], arg3, arg4, NULL };
   int p;
 
   long curOffset;
@@ -112,8 +128,6 @@ int main(int argc, char *argv[]) {
     curChanckSize = fileSize / (numCounters - i);
 
     // Generate arguments for the next counter
-    strcpy(in_args[1], argv[1]);
-    strcpy(in_args[2], argv[2]);
     sprintf(in_args[3], "%ld", curOffset);
     sprintf(in_args[4], "%ld", curChanckSize);
 
