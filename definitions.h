@@ -2,11 +2,17 @@
 #define DEFINITIONS_H
 
 // Number constants
+#define MAX_COUNTERS 16
+#define MIN_COUNTARE_SIZE 4096
 #define MAX_STRING 1024
 #define MAX_ARG_LENGTH 256
 
 // String constants
-#define PIPENAME_FORMAT "/tmp/counter_%lu"
+#define PIPENAME_FORMAT "/tmp/counter_%d"
+
+#define SIGACTION_FAIL "Failed to register signal handler: %s\n"
+
+#define D_SIGNAL_RECIEVE "Signal recieved from process %lu\n"
 
 // Print macros
 #define PRINT_I(...) do { printf(__VA_ARGS__); } while(0)

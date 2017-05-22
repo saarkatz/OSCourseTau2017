@@ -1,3 +1,4 @@
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -18,9 +19,29 @@ unsigned long count;
 // it has finished to counts its chanck of the file.
 void USR1_signal_handler(int signum, siginfo_t *info, void *ptr) {
   PRINT_D(D_SIGNAL_RECIEVE, (unsigned long)info->si_pid);
+  char pipename[MAX_STRING];
+  char buffer[MAX_STRING];
+  int pd;
+
+  sprintf(pipename, PIPENAME_FORMAT, info->si_pid);
 
   // Open pipe
+  pd = open(pipename, O_RDONLY);
+  if (pd < 0) {
+    PRINT_I(OPEN_PIPE_FAIL, pipename, strerror(errno));
+    return;
+  }
 
+  if (read(pd, buffer, MAX_STRING) < 0) {
+    PRINT_I(READ_PIPE_FAIL, pipename, strerror(errno));
+    close(pd);
+    return;
+  }
+
+  close(pd);
+
+  // Send signal back to child to notify it that signal was recieved
+  kill(info->si_pid, SIGUSR1);
 }
 
 // Main entry point for the dispatcher

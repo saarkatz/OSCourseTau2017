@@ -4,9 +4,22 @@
 #include <string.h>
 #include <stdio.h>
 #include <signal.h>
+#include <stdbool.h>
+#include <errno.h>
 
 #include "counter.h"
 #include "definitions.h"
+
+// Global varialble to indicate that parent has recieved the signal
+bool parentRecieved = false;
+
+// USR1 signal handler.
+// Signal handler that sets parentRecieved to true after recieving signal from
+// parnet
+void USR1_signal_handler(int signum, siginfo_t *info, void *ptr) {
+  PRINT_D(D_SIGNAL_RECIEVE, (unsigned long)info->si_pid);
+  parentRecieved = true;
+}
 
 // Main entry point for the counter
 // The counter counts the number of times a character, stored in argv[1]
@@ -23,10 +36,13 @@
 //       SIGUSR1 apparently kills the teminal. 
 int main(int argc, char *argv[]) {
   // Define variables
+  struct sigaction USR1Action;
   long offset;
   long size;
 
   char *str_end;
+
+  int i;
 
   int pid = getpid();
 
@@ -52,9 +68,31 @@ int main(int argc, char *argv[]) {
 
   PRINT_D("%d: Offset %ld, size %ld\n", pid, offset, size);
 
+  // Register SIGUSR1 signal handler
+  memset(&USR1Action, 0, sizeof(USR1Action));
+  USR1Action.sa_sigaction = USR1_signal_handler;
+  USR1Action.sa_flags = SA_SIGINFO;
+
+  if (sigaction(SIGUSR1, &USR1Action, NULL) < 0) {
+    PRINT_I(SIGACTION_FAIL, strerror(errno));
+    exit(1);
+  }
+
+
+  // Send SIGUSR1 to parent until an answer is returned or twice the maximum
+  // number of counters
   int parent_pid = getppid();
   if (parent_pid > 1) {
-    PRINT_D("%d: Parent pid: %ld\n", pid, (long)parent_pid);
-    kill(parent_pid, SIGUSR1);
+    for (i = 0; i < 2*MAX_COUNTERS && !parentRecieved; i++) {
+      kill(parent_pid, SIGUSR1);
+      sleep(1);
+    }
+    if (!parentRecieved) {
+      // Print mesage if parent did not return
+      PRINT_D(D_NO_ANS, pid, parent_pid);
+    }
   }
+
+  // Close and delete the pipe
+  // ------------------------
 }
