@@ -7,6 +7,7 @@
 
 // String constants
 #define COUNTER_FILENAME "counter"
+
 #define USAGE "Usage: %s <character> <filename>\n"
 #define STAT_FAIL "Failed to read file '%s' status: %s\n"
 #define SIGACTION_FAIL "Failed to register signal handler: %s"
@@ -14,5 +15,6 @@
 #define EXECV_FAIL "Failed to execute \"%s\".\n"
 
 #define D_FILE_AND_COUNTERS "Filesize: %ld, Counters: %d\n"
+#define D_SIGNAL_RECIEVE "Signal recieved from process %lu\n"
 
 #endif // !DISPATCHER_H

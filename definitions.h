@@ -5,6 +5,9 @@
 #define MAX_STRING 1024
 #define MAX_ARG_LENGTH 256
 
+// String constants
+#define PIPENAME_FORMAT "/tmp/counter_%lu"
+
 // Print macros
 #define PRINT_I(...) do { printf(__VA_ARGS__); } while(0)
 #define PRINT_D(...) do {\

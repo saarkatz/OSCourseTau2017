@@ -17,7 +17,10 @@ unsigned long count;
 // This signal sould be sent by a counter process to notifie the dispacher that
 // it has finished to counts its chanck of the file.
 void USR1_signal_handler(int signum, siginfo_t *info, void *ptr) {
-  PRINT_I("Signal recieved from process %lu\n", (unsigned long)info->si_pid);
+  PRINT_D(D_SIGNAL_RECIEVE, (unsigned long)info->si_pid);
+
+  // Open pipe
+
 }
 
 // Main entry point for the dispatcher
@@ -31,6 +34,7 @@ int main(int argc, char *argv[]) {
   // Define variables
   struct sigaction USR1Action;
   struct stat fileStat;
+  long fileSize;
   int numCounters;
 
   char arg1[MAX_ARG_LENGTH];
@@ -43,7 +47,9 @@ int main(int argc, char *argv[]) {
   long curOffset;
   long curChanckSize;
 
-  // Validate usage
+  int i;
+
+  // Validate arguments
   if (argc != 3 || strlen(argv[1]) != 1) {
     PRINT_I(USAGE, argv[0]);
     exit(0);
@@ -77,32 +83,38 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  // TODO - iterate for number of counters
   curOffset = 0;
-  curChanckSize = (long)fileStat.st_size;
+  fileSize = fileStat.st_size;
+  for (i = 0; i < numCounters; i++) {
+    PRINT_D("Instantiating counter number %d\n", i);
 
-  // Generate arguments for the next counter
-  strcpy(in_args[1], argv[1]);
-  strcpy(in_args[2], argv[2]);
-  sprintf(in_args[3], "%ld\n", curOffset);
-  sprintf(in_args[3], "%ld\n", curChanckSize);
+    curChanckSize = fileSize / (numCounters - i);
 
-  // Execute an instace of counter
-  if (-1 == (p = fork())) {
-    PRINT_I(FORK_FAIL);
-    return 1;
+    // Generate arguments for the next counter
+    strcpy(in_args[1], argv[1]);
+    strcpy(in_args[2], argv[2]);
+    sprintf(in_args[3], "%ld", curOffset);
+    sprintf(in_args[4], "%ld", curChanckSize);
+
+    // Execute an instace of counter
+    if (-1 == (p = fork())) {
+      PRINT_I(FORK_FAIL);
+      exit(1);
+    }
+    else if (0 == p) {
+      // We are the child
+      execv(COUNTER_FILENAME, in_args);
+      PRINT_I(EXECV_FAIL, COUNTER_FILENAME);
+      exit(1);
+    }
+
+    curOffset += curChanckSize;
+    fileSize -= curChanckSize;
   }
-  else if (0 == p) {
-    // We are the child
-    execv(COUNTER_FILENAME, in_args);
-    printf(EXECV_FAIL, COUNTER_FILENAME);
-    exit(1);
-  }
-
 
   while (1) {
     sleep(1);
-    printf("Meditating\n");
+    PRINT_I("Meditating\n");
   }
   exit(0);
 }
