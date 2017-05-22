@@ -8,23 +8,7 @@
 #include <signal.h>
 
 #include "dispatcher.h"
-
-// Number constants
-#define MAX_COUNTERS 16
-#define MIN_COUNTARE_SIZE 4096
-//#define DEFAULT_COUNTER_SIZE 4096
-#define MAX_STRING 1024
-
-// String constants
-#define USAGE "Usage: %s <character> <filename>\n"
-#define STAT_FAIL "Failed to read file '%s' status: %s\n"
-
-// Print macros
-#define PRINT_I(...) do { printf(__VA_ARGS__); } while(0)
-#define PRINT_D(...) do {\
-char __printd_buff__[MAX_STRING];\
-sprintf(__printd_buff__, __VA_ARGS__);\
-printf("%-13.13s - %-4d: %s", __FILE__, __LINE__, __printd_buff__); } while(0)
+#include "definitions.h"
 
 // USR1 signal handler.
 // This signal sould be sent by a counter process to notifie the dispacher that
