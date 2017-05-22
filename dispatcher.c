@@ -73,6 +73,7 @@ int main(int argc, char *argv[]) {
   // Define variables
   struct sigaction USR1Action;
   struct stat fileStat;
+  int fileSizeInPages;
   long fileSize;
   int numCounters;
 
@@ -85,6 +86,9 @@ int main(int argc, char *argv[]) {
   long curChanckSize;
 
   int i;
+  int wstatus;
+
+  long systemPageSize = sysconf(_SC_PAGE_SIZE);
 
   // Validate arguments
   if (argc != 3 || strlen(argv[1]) != 1) {
@@ -92,15 +96,17 @@ int main(int argc, char *argv[]) {
     exit(0);
   }
   
-  fileStat.st_size = atoi(argv[2]);
-//  // Determain the size of the file - use stat
-//  if (stat(argv[2], &fileStat) < 0) {
-//    PRINT_I(STAT_FAIL, argv[2], strerror(errno));
-//    exit(1);
-//  }
+  // Determain the size of the file - use stat
+  if (stat(argv[2], &fileStat) < 0) {
+    PRINT_I(STAT_FAIL, argv[2], strerror(errno));
+    exit(1);
+  }
 
+  // Get file size (in pages and rounded up)
+  fileSizeInPages = CEIL_DIV(fileStat.st_size, systemPageSize);
+  
   // Choose the number of counters to use.
-  numCounters = fileStat.st_size / MIN_COUNTARE_SIZE;
+  numCounters = fileSizeInPages / MIN_COUNTARE_PAGE_NUM;
   if (numCounters < 1) {
     numCounters = 1;
   }
@@ -108,7 +114,7 @@ int main(int argc, char *argv[]) {
     numCounters = MAX_COUNTERS;
   }
 
-  PRINT_D(D_FILE_AND_COUNTERS, (long)fileStat.st_size, numCounters);
+  PRINT_D(D_FILE_AND_COUNTERS, (long)fileStat.st_size, fileSizeInPages, numCounters);
 
   // Register SIGUSR1 signal handler
   memset(&USR1Action, 0, sizeof(USR1Action));
@@ -125,11 +131,11 @@ int main(int argc, char *argv[]) {
   for (i = 0; i < numCounters; i++) {
     PRINT_D("Instantiating counter number %d\n", i);
 
-    curChanckSize = fileSize / (numCounters - i);
+    curChanckSize = CEIL_DIV(fileSizeInPages, numCounters - i);
 
     // Generate arguments for the next counter
     sprintf(in_args[3], "%ld", curOffset);
-    sprintf(in_args[4], "%ld", curChanckSize);
+    sprintf(in_args[4], "%ld", MIN(curChanckSize * systemPageSize, fileSize));
 
     // Execute an instace of counter
     if (-1 == (p = fork())) {
@@ -143,13 +149,18 @@ int main(int argc, char *argv[]) {
       exit(1);
     }
 
-    curOffset += curChanckSize;
-    fileSize -= curChanckSize;
+    curOffset += curChanckSize * systemPageSize;
+    fileSizeInPages -= curChanckSize;
+    fileSize -= curChanckSize * systemPageSize;
   }
 
-  while (1) {
-    sleep(1);
-    PRINT_I("Meditating\n");
+  for (i = 0; i < numCounters; i++){
+    p = wait(&wstatus);
+    if (!WIFEXITED(wstatus) || 0 != WEXITSTATUS(wstatus)) {
+      PRINT_I(COUNTER_FAIL, p);
+    }
   }
+
+  PRINT_I(RESULT_FORMAT, count);
   exit(0);
 }

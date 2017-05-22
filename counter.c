@@ -75,7 +75,6 @@ int main(int argc, char *argv[]) {
   char *str_end;
 
   int i;
-
   int pid = getpid();
 
   counter = 0;
@@ -112,30 +111,29 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-//  // Open the file
-//  fd = open(argv[2], O_RDONLY);
-//  if (fd < 0) {
-//    PRINT_I(OPEN_FILE_FAIL, strerror(errno));
-//    exit(1);
-//  }
+  // Open the file
+  fd = open(argv[2], O_RDONLY);
+  if (fd < 0) {
+    PRINT_I(OPEN_FILE_FAIL, argv[2], strerror(errno));
+    exit(1);
+  }
 
-//  // Map the file into memory
-//  map = (char*)mmap(NULL, size, PROT_READ, MAP_SHARED, fd, offset);
-//  if (map == MAP_FAILED) {
-//    PRINT_I(CREATE_MAP_FAIL, strerror(errno));
-//    exit(1);
-//  }
+  // Map the file into memory
+  map = (char*)mmap(NULL, size, PROT_READ, MAP_SHARED, fd, offset);
+  if (map == MAP_FAILED) {
+    PRINT_I(CREATE_MAP_FAIL, strerror(errno));
+    exit(1);
+  }
 
-//  // Count the num of appearences of the character in the file
-//  for (int i = 0; i < size; i++) {
-//    if (map[i] == argv[1][0]) {
-//      counter += 1;
-//    }
-//  }
-  counter = offset;
+  // Count the num of appearences of the character in the file
+  for (i = 0; i < size; i++) {
+    if (map[i] == argv[1][0]) {
+      counter += 1;
+    }
+  }
 
-//  close(fd);
-//  munmap(map, size);
+  close(fd);
+  munmap(map, size);
 
   // Create pipename
   sprintf(pipepath, PIPENAME_FORMAT, pid);

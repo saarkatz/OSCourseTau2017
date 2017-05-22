@@ -9,7 +9,7 @@
 #define FORK_FAIL "Failed to instantiate process!\n"
 #define EXECV_FAIL "Failed to execute \"%s\".\n"
 
-#define D_FILE_AND_COUNTERS "Filesize: %ld, Counters: %d\n"
+#define D_FILE_AND_COUNTERS "Filesize: %ld in %d pages, Counters: %d\n"
 #define D_READ_PIPE "Read \"%s\" from pipe \"%s\"\n"
 
 #endif // !DISPATCHER_H
