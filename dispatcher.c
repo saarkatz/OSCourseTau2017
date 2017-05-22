@@ -14,6 +14,12 @@
 // Global counter
 unsigned long count = 0;
 
+// Array of procEntry
+int counters[MAX_COUNTERS];
+
+// Keeps the head of couters array
+int currentProc = 0;
+
 // USR1 signal handler.
 // This signal sould be sent by a counter process to notifie the dispacher that
 // it has finished to counts its chanck of the file.
@@ -23,8 +29,17 @@ void USR1_signal_handler(int signum, siginfo_t *info, void *ptr) {
   char buffer[MAX_STRING];
   int pd;
 
+  int i;
+
   long amount;
   char *str_end;
+
+  //check that a signal from this counter was not received yet
+  for (i = 0; i < currentProc; i++) {
+    if (info->si_pid == counters[i]) return;
+  }
+  counters[currentProc] = info->si_pid;
+  currentProc++;
 
   // Send signal back to child to notify it that signal was recieved
   kill(info->si_pid, SIGUSR1);
