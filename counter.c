@@ -47,7 +47,6 @@ void USR1_signal_handler(int signum, siginfo_t *info, void *ptr) {
   if (write(pd, buffer, writer + 1) <= 0) {
     PRINT_I(WRITE_PIPE_FAIL, pipepath, strerror(errno));
     counter = -1;
-    return;
   }
 
   // Close pipe
@@ -156,7 +155,7 @@ int main(int argc, char *argv[]) {
   if (parent_pid > 1) {
     for (i = 0; i < 2*MAX_COUNTERS && !parentRecieved; i++) {
       kill(parent_pid, SIGUSR1);
-      usleep(500000);
+      usleep(50000);
     }
     if (!parentRecieved) {
       // Print mesage if parent did not return
@@ -169,8 +168,8 @@ int main(int argc, char *argv[]) {
   unlink(pipepath);
 
   // If at this point counter is -1 then either we did not receivid a signal 
-  // from parent or an error occured during run of signal handler. Trminate
-  // with an apropriate return value.
+  // from parent or an error occured during run of signal handler. Terminate
+  // with an appropriate return value.
   if (-1 == counter) {
     exit(1);
   }

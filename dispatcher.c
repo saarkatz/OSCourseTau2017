@@ -203,8 +203,8 @@ int main(int argc, char *argv[]) {
     fileSize -= curChanckSize * systemPageSize;
   }
 
-  // Wait for all the counters to finish
-  while(!finished) {
+    // Wait for all the counters to finish
+  while (!finished) {
     p = wait(&wstatus);
     if (p == -1) {
       if (ECHILD == errno) {
