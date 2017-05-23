@@ -7,15 +7,23 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <signal.h>
+#include <stdbool.h>
 
 #include "dispatcher.h"
 #include "definitions.h"
+
+// Data structure to keep track of running processes
+typedef struct proc {
+  int pid;
+  bool received;
+  bool stopped;
+} PROC;
 
 // Global counter
 unsigned long count = 0;
 
 // Array of procEntry
-int counters[MAX_COUNTERS];
+PROC counters[MAX_COUNTERS];
 
 // Keeps the head of couters array
 int currentProc = 0;
@@ -34,12 +42,25 @@ void USR1_signal_handler(int signum, siginfo_t *info, void *ptr) {
   long amount;
   char *str_end;
 
-  //check that a signal from this counter was not received yet
+  // Check that a signal from this counter was not received yet
   for (i = 0; i < currentProc; i++) {
-    if (info->si_pid == counters[i]) return;
+    if (info->si_pid == counters[i].pid) {
+      if (counters[i].received) {
+        return;
+      }
+      else {
+        counters[i].received = true;
+        break;
+      }
+
+      if (i == currentProc - 1) {
+        // If we get here then we received the signal before the dispatcher
+        // Managed to update the array and currentProc. In this case we return
+        PRINT_D("Process %d was not registered yet\n", info->si_pid);
+        return;
+      }
+    }
   }
-  counters[currentProc] = info->si_pid;
-  currentProc++;
 
   // Send signal back to child to notify it that signal was recieved
   kill(info->si_pid, SIGUSR1);
@@ -102,6 +123,7 @@ int main(int argc, char *argv[]) {
 
   int i;
   int wstatus;
+  bool finished = false;
 
   long systemPageSize = sysconf(_SC_PAGE_SIZE);
 
@@ -164,15 +186,60 @@ int main(int argc, char *argv[]) {
       exit(1);
     }
 
+    // Register the new process
+    counters[currentProc].pid = p;
+    counters[currentProc].received = false;
+    counters[currentProc].stopped = false;
+    currentProc++;
+
     curOffset += curChanckSize * systemPageSize;
     fileSizeInPages -= curChanckSize;
     fileSize -= curChanckSize * systemPageSize;
   }
 
-  for (i = 0; i < numCounters; i++){
+  // Wait for all the counters to finish
+  while(!finished) {
     p = wait(&wstatus);
+    if (p == -1) {
+      if (ECHILD == errno) {
+        // No more unwaited children, Check if we finished.
+        for (i = 0; i < currentProc; i++) {
+          if (false == counters[i].stopped) break;
+          if (currentProc - 1 == i) finished = true;
+        }
+        if (finished) {
+          PRINT_D("All processes finished but it was not cought by the "
+            "loop\n");
+          break;
+        }
+      }
+      else if (EINTR == errno) {
+        // Interrupted by signal
+        continue;
+      }
+      // An error occured
+      PRINT_D("Failed to wait for child: %s\n", strerror(errno));
+      break;
+    }
+
     if (!WIFEXITED(wstatus) || 0 != WEXITSTATUS(wstatus)) {
       PRINT_I(COUNTER_FAIL, p);
+    }
+    for (i = 0; i < currentProc; i++) {
+      if (p == counters[i].pid) break;
+    }
+    if (i == currentProc) {
+      // Counter not registered?!
+      PRINT_D("Counter %d is not registered in table\n", p);
+      break;
+    }
+    counters[i].stopped = true;
+    if (false == counters[i].received) {
+      PRINT_D("Signal was not received from counter %d\n", p);
+    }
+    for (i = 0; i < currentProc; i++) {
+      if (false == counters[i].stopped) break;
+      if (currentProc - 1 == i) finished = true;
     }
   }
 
