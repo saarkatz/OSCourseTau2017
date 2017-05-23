@@ -37,13 +37,17 @@ void USR1_signal_handler(int signum, siginfo_t *info, void *ptr) {
 
   pd = open(pipepath, O_WRONLY);
   if (pd < 0) {
-    PRINT_D(OPEN_PIPE_FAIL, pipepath, strerror(errno));
+    PRINT_I(OPEN_PIPE_FAIL, pipepath, strerror(errno));
+    counter = -1;
+    return;
   }
 
   // Write to the pipe
   PRINT_D("%d: " D_WRITING_PIPE, pid, buffer, pipepath);
-  if (write(pd, buffer, writer + 1) < 0) {
+  if (write(pd, buffer, writer + 1) <= 0) {
     PRINT_I(WRITE_PIPE_FAIL, pipepath, strerror(errno));
+    counter = -1;
+    return;
   }
 
   // Close pipe
@@ -82,8 +86,8 @@ int main(int argc, char *argv[]) {
 
   // Validate arguments
   if (argc != 5 || strlen(argv[1]) != 1) {
-    PRINT_D("%d: " USAGE, pid, argv[0]);
-    exit(0);
+    PRINT_I("%d: " USAGE, pid, argv[0]);
+    exit(1);
   }
 
   // Make sure that argv[3] and argv[4] are numbers.
@@ -91,13 +95,13 @@ int main(int argc, char *argv[]) {
   if (argv[3] + strlen(argv[3]) != str_end && 1 != strlen(argv[3])) {
     PRINT_D("%d: Not a number: %s\n", pid, argv[3]);
     PRINT_I(USAGE, argv[0]);
-    exit(0);
+    exit(1);
   }
   size = strtol(argv[4], &str_end, 0);
   if (argv[4] + strlen(argv[4]) != str_end) {
     PRINT_D("%d: Not a number: %s\n", pid, argv[3]);
     PRINT_I(USAGE, argv[0]);
-    exit(0);
+    exit(1);
   }
 
   PRINT_D("%d: Offset %ld, size %ld\n", pid, offset, size);
@@ -152,14 +156,23 @@ int main(int argc, char *argv[]) {
   if (parent_pid > 1) {
     for (i = 0; i < 2*MAX_COUNTERS && !parentRecieved; i++) {
       kill(parent_pid, SIGUSR1);
-      sleep(1);
+      usleep(500000);
     }
     if (!parentRecieved) {
       // Print mesage if parent did not return
       PRINT_D(D_NO_ANS, pid, parent_pid);
+      counter = -1;
     }
   }
 
   // Delete the pipe
   unlink(pipepath);
+
+  // If at this point counter is -1 then either we did not receivid a signal 
+  // from parent or an error occured during run of signal handler. Trminate
+  // with an apropriate return value.
+  if (-1 == counter) {
+    exit(1);
+  }
+  exit(0);
 }

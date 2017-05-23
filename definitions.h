@@ -3,7 +3,7 @@
 
 // Number constants
 #define MAX_COUNTERS 16
-#define MIN_COUNTARE_PAGE_NUM 1
+#define MIN_COUNTARE_PAGE_NUM 2
 #define MAX_STRING 1024
 #include <fcntl.h>
 #include <string.h>
@@ -14,7 +14,10 @@
 
 // String constants
 #define PIPENAME_FORMAT "/tmp/counter_%d"
-#define RESULT_FORMAT "%lu\n"
+#define RESULT_FORMAT "Counted %lu appearances of char %c in file \"%s\"\n"
+#define RESULT_NOT_EXACT "This result is not exact.\n"\
+                          "The following chuncks are missing from the count\n"
+#define MISSING_CHUNK "Chunck from %ld to %ld\n"
 
 #define SIGACTION_FAIL "Failed to register signal handler: %s\n"
 #define CREATE_PIPE_FAIL "Failed to create pipe \"%s\": %s\n"

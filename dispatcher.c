@@ -15,8 +15,11 @@
 // Data structure to keep track of running processes
 typedef struct proc {
   int pid;
+  long offset;
+  long size;
   bool received;
   bool stopped;
+  bool clean_finish;
 } PROC;
 
 // Global counter
@@ -188,8 +191,11 @@ int main(int argc, char *argv[]) {
 
     // Register the new process
     counters[currentProc].pid = p;
+    counters[currentProc].offset = curOffset;
+    counters[currentProc].size = MIN(curChanckSize * systemPageSize, fileSize);
     counters[currentProc].received = false;
     counters[currentProc].stopped = false;
+    counters[currentProc].clean_finish = false;
     currentProc++;
 
     curOffset += curChanckSize * systemPageSize;
@@ -218,13 +224,11 @@ int main(int argc, char *argv[]) {
         continue;
       }
       // An error occured
-      PRINT_D("Failed to wait for child: %s\n", strerror(errno));
+      PRINT_I("Failed to wait for child: %s\n", strerror(errno));
       break;
     }
 
-    if (!WIFEXITED(wstatus) || 0 != WEXITSTATUS(wstatus)) {
-      PRINT_I(COUNTER_FAIL, p);
-    }
+    // At this point we know we got the return of a child process.
     for (i = 0; i < currentProc; i++) {
       if (p == counters[i].pid) break;
     }
@@ -233,16 +237,41 @@ int main(int argc, char *argv[]) {
       PRINT_D("Counter %d is not registered in table\n", p);
       break;
     }
+
+    if (!WIFEXITED(wstatus) || 0 != WEXITSTATUS(wstatus)) {
+      PRINT_I(COUNTER_FAIL, p);
+      counters[i].clean_finish = false;
+    }
+    else {
+      counters[i].clean_finish = true;
+    }
     counters[i].stopped = true;
+
     if (false == counters[i].received) {
       PRINT_D("Signal was not received from counter %d\n", p);
+      counters[i].clean_finish = false;
     }
+
+    // Check if all child processes have finished
     for (i = 0; i < currentProc; i++) {
       if (false == counters[i].stopped) break;
       if (currentProc - 1 == i) finished = true;
     }
   }
 
-  PRINT_I(RESULT_FORMAT, count);
+  PRINT_I(RESULT_FORMAT, count, argv[1][0], argv[2]);
+  // Check to see if any counter returned error value. If so print a report
+  // accordingly
+  for (i = 0; i < currentProc; i++) {
+    if (false == counters[i].clean_finish) {
+      if (finished) {
+        PRINT_I(RESULT_NOT_EXACT);
+        finished = false;
+      }
+      PRINT_I(MISSING_CHUNK, counters[i].offset,
+        counters[i].offset + counters[i].size - 1);
+    }
+    
+  }
   exit(0);
 }
