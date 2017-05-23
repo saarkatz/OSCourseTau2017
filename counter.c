@@ -149,13 +149,13 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  // Send SIGUSR1 to parent until an answer is returned or twice the maximum
-  // number of counters tries were tried
+  // Send SIGUSR1 to parent until an answer is returned or SIGNAL_TRIES times
+  // were tried
   int parent_pid = getppid();
   if (parent_pid > 1) {
-    for (i = 0; i < 2*MAX_COUNTERS && !parentRecieved; i++) {
+    for (i = 0; i < SIGNAL_TRIES && !parentRecieved; i++) {
       kill(parent_pid, SIGUSR1);
-      usleep(50000);
+      usleep(USLEEP_SIGNALS);
     }
     if (!parentRecieved) {
       // Print mesage if parent did not return
