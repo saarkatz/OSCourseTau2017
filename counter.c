@@ -25,6 +25,7 @@ void USR1_signal_handler(int signum, siginfo_t *info, void *ptr) {
   char buffer[MAX_STRING];
   int pd;
   int pid = getpid();
+  int writer;
 
   parentRecieved = true;
   
@@ -32,7 +33,7 @@ void USR1_signal_handler(int signum, siginfo_t *info, void *ptr) {
   sprintf(pipepath, PIPENAME_FORMAT, pid);
 
   // Create a string for the number
-  sprintf(buffer, "%ld", counter);
+  writer = sprintf(buffer, "%ld", counter);
 
   pd = open(pipepath, O_WRONLY);
   if (pd < 0) {
@@ -41,7 +42,7 @@ void USR1_signal_handler(int signum, siginfo_t *info, void *ptr) {
 
   // Write to the pipe
   PRINT_D("%d: " D_WRITING_PIPE, pid, buffer, pipepath);
-  if (write(pd, buffer, strlen(buffer)) < 0) {
+  if (write(pd, buffer, writer + 1) < 0) {
     PRINT_I(WRITE_PIPE_FAIL, pipepath, strerror(errno));
   }
 
