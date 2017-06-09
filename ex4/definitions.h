@@ -25,9 +25,9 @@
 
 
 // Print strings
-#define USE_MAX_LEN_INSTEAD "Using LONG_MAX(%ld) instead\n"
+#define USE_MAX_LEN_INSTEAD "Using LONG_MAX (%ld) instead.\n"
 
-#define ERR_VALUE_ERANGE "%s value is out of range (%s %ld)\n"
+#define ERR_VALUE_ERANGE "%s value is out of range (%s %ld)!\n"
 
 // Print macros
 #define PRINT_I(...) do { printf(__VA_ARGS__); } while(0)
