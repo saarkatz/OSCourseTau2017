@@ -11,4 +11,7 @@ number returned from the server.\n\
 LEN - positive integer\n\
 SOURCE_FILENAME - Valide filename\n"
 
+// Debug messages
+#define D_CLIENT_CONNETING "Client connecting...\n"
+
 #endif // PCC_CLIENT_H
