@@ -6,7 +6,7 @@
 
 // Debug flags
 #define DEBUG 1
-#define DEBUG_LOG_FILE "log.txt"
+//#define DEBUG_LOG_FILE "log.txt"
 
 // Connection
 #define PORT 2233
@@ -28,8 +28,13 @@
 #define USE_MAX_LEN_INSTEAD "Using LONG_MAX (%ld) instead.\n"
 #define CLIENT_RESULT "%ld characters where sent of which %ld characters are \
 readable.\n"
+#define TOTAL_COUNT "A total of %ld characters were recieved.\n"
+#define WE_SAW "we saw"
+#define AMOUNT_OF_CHAR " %ld '%c's"
 
 #define ERR_SIGHANDLE_FAIL "Error while registering signal handler: %s\n"
+#define ERR_INIT_MUTEX "Error initializing mutex: %s\n"
+#define ERR_INIT_COND "Error initializing condition: %s\n"
 #define ERR_VALUE_ERANGE "%s value is out of range (%s %ld)!\n"
 #define ERR_CREATE_SOCKET "Error creating socket: %s\n"
 #define ERR_CONNECTION_FAIL "Error connecting: %s\n"

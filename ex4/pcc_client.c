@@ -164,6 +164,12 @@ int main(int argc, char *argv[]) {
   server_result = ntohl(server_result);
   PRINT_I(CLIENT_RESULT, len, server_result);
   PRINT_D("Closing connection.\n");
-  close(sourcefd);
-  close(sockfd);
+  syscall_return = close(sourcefd);
+  if (syscall_return != 0) {
+    PRINT_D("close() error: %s\n", strerror(errno));
+  }
+  syscall_return = close(sockfd);
+  if (syscall_return != 0) {
+    PRINT_D("close() error: %s\n", strerror(errno));
+  }
 }
