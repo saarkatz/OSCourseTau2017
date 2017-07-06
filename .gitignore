@@ -1,0 +1,5 @@
+# Ignore everything that is not source file, header file or makefile
+/ex*/
+!/ex*/*.c
+!/ex*/*.h
+/ex*/Makefile
