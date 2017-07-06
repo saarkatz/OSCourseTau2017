@@ -1,5 +1,10 @@
 # Ignore everything that is not source file, header file or makefile
-/ex*/
+# Includeing shell and bash files
+/*
+!/ex*/
+/ex*/*
 !/ex*/*.c
 !/ex*/*.h
-/ex*/Makefile
+!/ex*/*.sh
+!/ex*/*.bash
+!/ex*/Makefile
