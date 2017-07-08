@@ -20,7 +20,7 @@ Mlist *mlist_create(void) {
   PRINTK_D("%s", "Createing list\n");
 
   list = (Mlist*)kmalloc(sizeof(*list), GFP_KERNEL);
-  if (list <= 0) {
+  if (NULL == list) {
     // According to
     // https://stackoverflow.com/questions/37897767/error-handling-checking-in-the-kernel-realm
     // kmalloc does not return any indication of error, it just returns NULL
