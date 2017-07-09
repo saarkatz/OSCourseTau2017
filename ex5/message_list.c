@@ -1,5 +1,22 @@
+/* Declare what kind of code we want from the header files
+Defining __KERNEL__ and MODULE allows us to access kernel-level
+code not usually available to userspace programs. */
+#undef __KERNEL__
+#define __KERNEL__ /* We're part of the kernel */
+#undef MODULE
+#define MODULE     /* Not a permanent part, though. */
+
+#include <linux/kernel.h>   /* We're doing kernel work */
+#include <linux/module.h>   /* Specifically, a module */
+#include <linux/fs.h>       /* for register_chrdev */
+#include <asm/uaccess.h>    /* for get_user and put_user */
+#include <linux/string.h>   /* for memset. NOTE - not string.h!*/
+#include <linux/slab.h>     /* for kmalloc */
+
 #include "message_list.h"
 #include "definitions.h"
+
+MODULE_LICENSE("GPL");
 
 typedef struct message_node {
   int id;
@@ -64,7 +81,7 @@ int mlist_append(Mlist *list, int id, Smessage *message) {
 
   node = (Mnode*)kmalloc(sizeof(*node), GFP_KERNEL);
   if (node <= 0) {
-    PRINTK_I("%s", ERR_CREATE_MNODE);
+    PRINTK_I("%s\n", ERR_CREATE_MNODE);
     return -ENOMEM;
   }
 
@@ -106,7 +123,7 @@ Smessage *mlist_remove(Mlist *list, int id) {
       kfree(iterator);
       list->count -= 1;
 
-      PRINTK_D("%s", "Item removed\n");
+      PRINTK_D("%s\n", "Item removed");
 
       return message;
     }
@@ -120,7 +137,7 @@ Smessage *mlist_remove(Mlist *list, int id) {
 void mlist_destroy(Mlist *list) {
   Mnode *iterator = &list->Sentinal;
 
-  PRINTK_D("%s", "Destroying list\n");
+  PRINTK_D("%s\n", "Destroying list");
 
   while (&list->Sentinal != list->Sentinal.next) {
     iterator = list->Sentinal.next;
