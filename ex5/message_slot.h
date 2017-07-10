@@ -5,9 +5,12 @@ typedef struct Message_slot Smessage;
 
 typedef struct message_slot_info MSinfo;
 
-/* The major device number. We can't rely on dynamic
-* registration any more, because ioctls need to know
-* it. */
+// According to
+// https://stackoverflow.com/a/22658358
+// ioctl does not require the major number of the driver, but actually a unique
+// number. While the major is unique to the driver, if hard coded, there is no
+// guarantee that it is available.
+// Even so I will use the MAGIC_NUM as the major for the driver.
 #define MAGIC_NUM 247
 
 /* Set the message of the device driver */

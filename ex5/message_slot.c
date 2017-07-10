@@ -54,8 +54,12 @@ static int device_open(struct inode *inode, struct file *file) {
   if (NULL == device) {
     device = (Smessage*)kmalloc(sizeof(*device), GFP_KERNEL);
 
-    memset(device, 0, sizeof(*device));
+    // As per the answers in the moodle, the buffers shall not be cleared.
+    // Which is, in my opinion, bad design because the user can get data that
+    // was previously in the kernel this way.
+    // memset(device, 0, sizeof(*device));
     device->channel = -1;
+    device->in_use = 0;
     spin_lock_init(&device->lock_slot);
 
     mlist_append(mlist, file->f_inode->i_ino, device);
@@ -71,8 +75,6 @@ static int device_open(struct inode *inode, struct file *file) {
   device->in_use++;
   spin_unlock_irqrestore(&device->lock_slot, flags);
 
-  PRINTK_D("file->f_inode->i_ino: %lu\n", file->f_inode->i_ino);
-
   return SUCCESS;
 }
 
@@ -87,14 +89,13 @@ static int device_release(struct inode *inode, struct file *file) {
   device = mlist_find(mlist, file->f_inode->i_ino);
   spin_unlock_irqrestore(&msinfo.lock_list, flags);
   
-  if (NULL != device) {
-    spin_lock_irqsave(&device->lock_slot, flags);
-    if (device->in_use) {
-      device->in_use--;
-      device->channel = -1;
-    }
-    spin_unlock_irqrestore(&device->lock_slot, flags);
-  }
+  spin_lock_irqsave(&device->lock_slot, flags);
+  device->in_use--;
+  // In my opinion it is better to force the user to choose a channel whenever
+  // he tries to use the device. Otherwise he will read from the last used
+  // channel.
+  //device->channel = -1;
+  spin_unlock_irqrestore(&device->lock_slot, flags);
 
   return SUCCESS;
 }
@@ -107,32 +108,46 @@ static ssize_t device_read(struct file *file, /* see include/linux/fs.h */
   loff_t * offset)
 {
   int i;
+  int result;
+  char character;
   Smessage *device;
   unsigned long flags; // for spinlock
 
-  PRINTK_D("device_read(%p,%d)\n", file, length);
+  PRINTK_D("%s", "Device read");
 
   // Get device from list
   spin_lock_irqsave(&msinfo.lock_list, flags);
   device = mlist_find(mlist, file->f_inode->i_ino);
   spin_unlock_irqrestore(&msinfo.lock_list, flags);
 
-  if (NULL == device) {
-    return -EINVAL;
-  }
+  // The device must be in the list if the user had opened it
+  //if (NULL == device) {
+  //  return -EINVAL;
+  //}
 
-  // Copy message from device to buffer
+  // Make sure that a channel was set
   spin_lock_irqsave(&device->lock_slot, flags);
-  if (-1 == device->channel || !device->in_use) {
+  if (-1 == device->channel) {
     spin_unlock_irqrestore(&device->lock_slot, flags);
     return -EINVAL;
   }
   spin_unlock_irqrestore(&device->lock_slot, flags);
 
-  // device channel can't be set by ioctl to any thing other than 0-BUF_LEN so
+  // Check that there is no fault in the user buffer
+  // See https://www.fsl.cs.sunysb.edu/kernel-api/re244.html
+  // and https://www.fsl.cs.sunysb.edu/kernel-api/re245.html
+  // for more about get_user/put_user
+  for (i = 0; i < length; i++) {
+    result = get_user(character, buffer + i);
+    if (0 > result) {
+      return result;
+    }
+  }
+
+  // At this point we can procceed to copy the message
+  // device channel can't be set by ioctl to anything other than 0-BUF_LEN so
   // there wont be a check to see if channel is valid.
   for (i = 0; i < MIN(BUF_LEN, length); i++) {
-    // Consider error cheking
     put_user(device->messages[device->channel][i], buffer + i);
   }
 
@@ -143,7 +158,9 @@ static ssize_t device_write(struct file *file,
   const char __user * buffer, size_t length, loff_t * offset) {
   int i;
   int byte_count = 0;
+  int result;
   Smessage *device;
+  char character;
   unsigned long flags; // for spinlock
 
   PRINTK_D("%s\n", "Device write");
@@ -153,29 +170,40 @@ static ssize_t device_write(struct file *file,
   device = mlist_find(mlist, file->f_inode->i_ino);
   spin_unlock_irqrestore(&msinfo.lock_list, flags);
 
-  if (NULL == device) {
-    return -EINVAL;
-  }
+  // The device must be in the list if the user had opened it
+  //if (NULL == device) {
+  //  return -EINVAL;
+  //}
 
-  // Copy message from device to buffer
+  // Make sure that a channel was set
   spin_lock_irqsave(&device->lock_slot, flags);
-  if (-1 == device->channel || !device->in_use) {
+  if (-1 == device->channel) {
     spin_unlock_irqrestore(&device->lock_slot, flags);
     return -EINVAL;
   }
   spin_unlock_irqrestore(&device->lock_slot, flags);
 
-  // device channel can't be set by ioctl to any thing other than 0-BUF_LEN so
+  // Check that there is no fault in the user buffer
+  for (i = 0; i < length; i++) {
+    result = get_user(character, buffer + i);
+    if (0 > result) {
+      return result;
+    }
+  }
+
+  // At this point we can procceed to copy the message
+  // device channel can't be set by ioctl to anything other than 0-BUF_LEN so
   // there wont be a check to see if channel is valid.
+  byte_count = i;
   for (i = 0; i < BUF_LEN; i++) {
-    if (i < length) {
+    if (i < byte_count) {
       get_user(device->messages[device->channel][i], buffer + i);
-      byte_count++;
     }
     else {
       device->messages[device->channel][i] = 0;
     }
   }
+
 
   return byte_count;
 }
@@ -199,17 +227,17 @@ static long device_ioctl( //struct inode*  inode,
       device = mlist_find(mlist, file->f_inode->i_ino);
       spin_unlock_irqrestore(&msinfo.lock_list, flags);
 
-      if (NULL != device) {
-        spin_lock_irqsave(&device->lock_slot, flags);
-        if (device->in_use) {
-          device->channel = ioctl_param;
-        }
-        spin_unlock_irqrestore(&device->lock_slot, flags);
-      }
+      spin_lock_irqsave(&device->lock_slot, flags);
+      device->channel = ioctl_param;
+      spin_unlock_irqrestore(&device->lock_slot, flags);
+    }
+    else {
+      return -EINVAL;
     }
     break;
   default:
     PRINTK_D("%s\n", "Ioctl - unknown message");
+    return -EINVAL;
     break;
   }
 
@@ -243,17 +271,19 @@ static int __init simple_init(void) {
   }
 
   /* Register a character device. Get newly assigned major num */
-  major = register_chrdev(0, DEVICE_RANGE_NAME, &Fops /* our own file operations struct */);
+  // If MAGIC_NUM > 0 register_chrdev returns 0 on success.
+  // See https://www.fsl.cs.sunysb.edu/kernel-api/re941.html
+  major = register_chrdev(MAGIC_NUM, DEVICE_RANGE_NAME, &Fops /* our own file operations struct */);
   /* Negative values signify an error */
   if (major < 0) {
     PRINTK_I(KERN_ALERT "%s failed with %d\n",
-      "Sorry, registering the character device ", major);
+      "Sorry, registering the character device ", MAGIC_NUM);
     mlist_destroy(mlist);
     return major;
   }
 
-  PRINTK_D("Module registered. The major device number is %d.\n", major);
-  return 0;
+  PRINTK_D("Module registered. The major device number is %d.\n", MAGIC_NUM);
+  return SUCCESS;
 }
 
 /* Cleanup - unregister the appropriate file from /proc */
@@ -265,7 +295,7 @@ static void __exit simple_cleanup(void) {
   // Free message list
   mlist_destroy(mlist);
 
-  unregister_chrdev(major, DEVICE_RANGE_NAME);
+  unregister_chrdev(MAGIC_NUM, DEVICE_RANGE_NAME);
 }
 
 module_init(simple_init);

@@ -46,7 +46,9 @@ Mlist *mlist_create(void) {
     return NULL;
   }
 
-  memset(list, 0, sizeof(*list));
+  // Memset not needed here
+  //memset(list, 0, sizeof(*list));
+  list->count = 0;
   list->Sentinal.next = &list->Sentinal;
   list->Sentinal.prev = &list->Sentinal;
 
@@ -85,7 +87,8 @@ int mlist_append(Mlist *list, int id, Smessage *message) {
     return -ENOMEM;
   }
 
-  memset(node, 0, sizeof(*node));
+  // Memset not needed here
+  //memset(node, 0, sizeof(*node));
   node->id = id;
   node->message = message;
 
