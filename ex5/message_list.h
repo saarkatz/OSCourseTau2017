@@ -1,7 +1,7 @@
 #ifndef MESSAGE_LIST_
 #define MESSAGE_LIST_
 
-#include "message_slot.h"
+#include "message_slot_c.h"
 
 // Consider spinlocking the list
 typedef struct message_list Mlist;

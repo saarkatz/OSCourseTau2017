@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <errno.h>
 
-#include "message_slot.h"
+#include "message_slot_c.h"
 
 #define DEBUG 1
 

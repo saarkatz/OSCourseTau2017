@@ -15,7 +15,7 @@ code not usually available to userspace programs. */
 #include <linux/spinlock.h> /* for spinlock */
 #include <linux/ioctl.h>
 
-#include "message_slot.h"
+#include "message_slot_c.h"
 #include "message_list.h"
 #include "definitions.h"
 
@@ -113,7 +113,7 @@ static ssize_t device_read(struct file *file, /* see include/linux/fs.h */
   Smessage *device;
   unsigned long flags; // for spinlock
 
-  PRINTK_D("%s", "Device read");
+  PRINTK_D("%s\n", "Device read");
 
   // Get device from list
   spin_lock_irqsave(&msinfo.lock_list, flags);
